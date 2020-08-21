@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cloudability-metrics-agent.fullname" . }}
+  labels:
+    {{- include "cloudability-metrics-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cloudability-metrics-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cloudability-metrics-agent.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "cloudability-metrics-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - kubernetes
+          env:
+          - name: CLOUDABILITY_CLUSTER_NAME
+            value: "{{ .Values.cloudability.clusterName }}"
+          - name: CLOUDABILITY_POLL_INTERVAL
+            value: "{{ .Values.cloudability.pollInterval }}"
+          - name: CLOUDABILITY_NAMESPACE
+            value: "{{ .Release.Namespace }}"
+          - name: CLOUDABILITY_LOG_LEVEL
+            value: "{{ .Values.cloudability.logLevel }}"
+          - name: CLOUDABILITY_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "cloudability-metrics-agent.fullname" . }}
+                key: apiKey
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
